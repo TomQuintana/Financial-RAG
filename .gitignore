@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv
+
+# Env
+.env
+.env.*
+*.env
+
+# Data / PDFs
+data/reports/*.pdf
+
+# Vector store / ChromaDB
+chroma_db/
+*.db
+*.sqlite
+
+# Streamlit
+.streamlit/
+
+# Eval outputs
+eval/results/
+
+# OS
+.DS_Store
