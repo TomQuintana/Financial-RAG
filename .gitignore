@@ -12,11 +12,11 @@ wheels/
 .env.*
 *.env
 
-# Data / PDFs
-data/reports/*.pdf
+# Data / reports (HTML source files, too large for git)
+data/reports/
 
 # Vector store / ChromaDB
-chroma_db/
+data/chroma_db/
 *.db
 *.sqlite
 
@@ -28,3 +28,6 @@ eval/results/
 
 # OS
 .DS_Store
+
+# todo
+todo.md
