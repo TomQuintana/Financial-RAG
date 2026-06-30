@@ -1,9 +1,9 @@
 """
-ingest.py — Text extraction and cleaning from 10-K HTML reports.
-Step 1 of the RAG Financial pipeline.
+ingest.py — Text extraction, cleaning, chunking and indexing from 10-K HTML reports.
+Steps 1, 2 and 3 of the RAG Financial pipeline.
 
 Input:  HTML files in data/reports/
-Output: List of documents with clean text and metadata, ready for chunking.
+Output: ChromaDB collection with embedded chunks, ready for retrieval.
 """
 
 import re
@@ -11,29 +11,43 @@ import warnings
 from pathlib import Path
 
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters.character import RecursiveCharacterTextSplitter
+from dotenv import load_dotenv
+
+load_dotenv()
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
+
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-DATA_DIR = Path("data/reports")
+DATA_DIR   = Path("data/reports")
+CHROMA_DIR = Path("data/chroma_db")
+COLLECTION = "financial_reports"
 
-# Ticker → company name mapping for metadata
 COMPANIES = {
     "AAPL": "Apple",
-    "JPM": "JPMorgan",
-    "KO": "Coca-Cola",
-    "PFE": "Pfizer",
-    "XOM": "ExxonMobil",
+    "JPM":  "JPMorgan",
+    "KO":   "Coca-Cola",
+    "PFE":  "Pfizer",
+    "XOM":  "ExxonMobil",
 }
 
+# ~800 tokens ≈ 3200 characters (1 token ≈ 4 chars for English financial text)
+CHUNK_SIZE    = 3200
+CHUNK_OVERLAP = 400  # ~100 tokens overlap
+
+# text-embedding-3-small: best balance of quality and cost (~$0.02/1M tokens)
+EMBEDDING_MODEL = "text-embedding-3-small"
+
 
 # ---------------------------------------------------------------------------
-# Cleaning functions
+# Cleaning
 # ---------------------------------------------------------------------------
-
 
 def clean_text(text: str) -> str:
     """
@@ -45,57 +59,28 @@ def clean_text(text: str) -> str:
     - Excessive blank lines between paragraphs
     - Leading/trailing whitespace on each line
     """
-    # Remove lines that contain only numbers (page numbers)
     text = re.sub(r"^\s*\d+\s*$", "", text, flags=re.MULTILINE)
-
-    # Remove typical 10-K header/footer pattern
-    # Example: "Apple Inc. | 2025 Form 10-K | 12"
     text = re.sub(r".+Form 10-K.+", "", text)
-
-    # Collapse 3+ consecutive blank lines into a single blank line
     text = re.sub(r"\n{3,}", "\n\n", text)
-
-    # Strip leading/trailing whitespace from each line
     lines = [line.strip() for line in text.split("\n")]
-    text = "\n".join(lines)
-
-    return text.strip()
+    return "\n".join(lines).strip()
 
 
 def is_useful(text: str, min_words: int = 50) -> bool:
-    """
-    Returns True if the text has enough content to be useful for RAG.
-
-    Filters out:
-    - Cover pages and signature pages (very short)
-    - Failed extractions (near-empty text)
-    """
-    words = text.split()
-    return len(words) >= min_words
+    return len(text.split()) >= min_words
 
 
 # ---------------------------------------------------------------------------
 # Extraction
 # ---------------------------------------------------------------------------
 
-
 def extract_from_html(path: Path, ticker: str) -> dict | None:
-    """
-    Opens an HTML 10-K file, extracts clean text using BeautifulSoup,
-    and returns a document dict with metadata.
-
-    One HTML file = one annual report = one document.
-
-    Returns None if the extracted text is not useful.
-    """
     company = COMPANIES.get(ticker, ticker)
-
     print(f"  Processing {ticker} ({company}) — {path.name}")
 
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         html = f.read()
 
-    # Parse HTML and extract visible text only (no tags, no scripts, no styles)
     soup = BeautifulSoup(html, "lxml")
 
     # Remove script, style, and iXBRL header (XBRL metadata, not human text)
@@ -104,59 +89,110 @@ def extract_from_html(path: Path, ticker: str) -> dict | None:
     for tag in soup.find_all(lambda t: t.name == "ix:header"):
         tag.decompose()
 
-    raw_text = soup.get_text(separator="\n", strip=True)
-    text = clean_text(raw_text)
+    text = clean_text(soup.get_text(separator="\n", strip=True))
 
     if not is_useful(text):
-        print(f"    ⚠️  Not enough content extracted from {path.name}, skipping.")
+        print(f"    ⚠️  Not enough content in {path.name}, skipping.")
         return None
 
-    word_count = len(text.split())
-    print(f"    → {word_count:,} words extracted")
-
-    return {
-        "text": text,
-        "company": company,
-        "ticker": ticker,
-        "source": path.name,
-    }
+    print(f"    → {len(text.split()):,} words extracted")
+    return {"text": text, "company": company, "ticker": ticker, "source": path.name}
 
 
 # ---------------------------------------------------------------------------
-# Orchestrator
+# Chunking
 # ---------------------------------------------------------------------------
+
+def chunk_documents(documents: list[dict]) -> list[dict]:
+    """
+    Splits each document into chunks of ~800 tokens with ~100 token overlap.
+
+    Separators tried in order: paragraph → line → sentence → word → char.
+    Each chunk inherits parent metadata plus chunk_index.
+    """
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+        separators=["\n\n", "\n", ". ", " ", ""],
+    )
+
+    all_chunks = []
+    for doc in documents:
+        raw_chunks = splitter.split_text(doc["text"])
+        for i, chunk_text in enumerate(raw_chunks):
+            all_chunks.append({
+                "text":        chunk_text,
+                "company":     doc["company"],
+                "ticker":      doc["ticker"],
+                "source":      doc["source"],
+                "chunk_index": i,
+            })
+        print(f"  {doc['ticker']:<6} → {len(raw_chunks)} chunks")
+
+    print(f"\n✅ Total chunks: {len(all_chunks)}")
+    return all_chunks
+
+
+# ---------------------------------------------------------------------------
+# Embedding + Indexing
+# ---------------------------------------------------------------------------
+
+def build_embeddings(chunks: list[dict]) -> Chroma:
+    """
+    Embeds all chunks with OpenAI text-embedding-3-small and stores them
+    in a persistent ChromaDB collection at CHROMA_DIR.
+
+    IDs are ticker + chunk_index (e.g. "AAPL_0042") to allow safe re-runs
+    without duplicating existing chunks.
+    """
+    print(f"\n🔢 Loading embedding model: {EMBEDDING_MODEL}")
+    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
+
+    texts     = [chunk["text"] for chunk in chunks]
+    metadatas = [
+        {
+            "company":     chunk["company"],
+            "ticker":      chunk["ticker"],
+            "source":      chunk["source"],
+            "chunk_index": chunk["chunk_index"],
+        }
+        for chunk in chunks
+    ]
+    ids = [f"{chunk['ticker']}_{chunk['chunk_index']:04d}" for chunk in chunks]
+
+    print(f"📥 Indexing {len(texts)} chunks into ChromaDB at {CHROMA_DIR}...\n")
+
+    vector_store = Chroma.from_texts(
+        texts=texts,
+        embedding=embeddings,
+        metadatas=metadatas,
+        ids=ids,
+        collection_name=COLLECTION,
+        persist_directory=str(CHROMA_DIR),
+    )
+
+    print(f"\n✅ Index built — {len(texts)} chunks stored in '{COLLECTION}'")
+    return vector_store
 
 
 def load_reports() -> list[dict]:
-    """
-    Reads all HTML files in data/reports/ and returns a list of documents.
-
-    Expected file naming convention:
-        AAPL_10K_2025.html
-        JPM_10K_2025.html
-        ...
-    The ticker is inferred from the first part of the filename before '_'.
-    """
     html_files = sorted(DATA_DIR.glob("*.html")) + sorted(DATA_DIR.glob("*.htm"))
 
     if not html_files:
         raise FileNotFoundError(
             f"No HTML files found in {DATA_DIR}. "
-            "Download the 10-K reports from EDGAR and save them there."
+            "Download 10-K reports from EDGAR and save them there."
         )
 
     print(f"\n📂 Found {len(html_files)} HTML files in {DATA_DIR}\n")
-
     documents = []
 
     for path in html_files:
-        # Infer ticker from filename (e.g. aapl-20250927.html → AAPL)
+        # EDGAR naming: aapl-20250927.html → AAPL
         ticker = path.stem.split("-")[0].upper()
-
         if ticker not in COMPANIES:
             print(f"  ⚠️  Ticker '{ticker}' not recognized, skipping {path.name}")
             continue
-
         doc = extract_from_html(path, ticker)
         if doc:
             documents.append(doc)
@@ -166,37 +202,36 @@ def load_reports() -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Stats (useful for debugging and cost estimation)
+# Stats
 # ---------------------------------------------------------------------------
 
-
-def stats(documents: list[dict]) -> None:
-    """Prints a summary of extracted content per company."""
-    print("\n📊 Summary per company:")
-    print(f"  {'Ticker':<8} {'Company':<15} {'Words':>10} {'Approx. tokens':>16}")
+def stats(chunks: list[dict]) -> None:
+    print("\n📊 Chunk summary per company:")
+    print(f"  {'Ticker':<8} {'Company':<15} {'Chunks':>8} {'Avg. chars/chunk':>18}")
     print("  " + "-" * 54)
 
-    for doc in sorted(documents, key=lambda d: d["ticker"]):
-        word_count = len(doc["text"].split())
-        # 1 word ≈ 1.3 tokens
-        token_count = int(word_count * 1.3)
-        print(
-            f"  {doc['ticker']:<8} {doc['company']:<15} {word_count:>10,} {token_count:>16,}"
-        )
+    per_ticker: dict[str, list] = {}
+    for chunk in chunks:
+        per_ticker.setdefault(chunk["ticker"], []).append(chunk)
+
+    for ticker, ticker_chunks in sorted(per_ticker.items()):
+        company = ticker_chunks[0]["company"]
+        avg_chars = int(sum(len(c["text"]) for c in ticker_chunks) / len(ticker_chunks))
+        print(f"  {ticker:<8} {company:<15} {len(ticker_chunks):>8} {avg_chars:>18,}")
 
 
 # ---------------------------------------------------------------------------
-# Direct execution — for testing
+# Direct execution — runs the full ingestion pipeline
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    # Step 1 — extract text
     documents = load_reports()
-    stats(documents)
 
-    # Show a text sample from the first document
-    if documents:
-        sample = documents[0]
-        print(f"\n📄 Sample — {sample['company']} ({sample['source']}):")
-        print("-" * 60)
-        print(sample["text"][:600])
-        print("...")
+    # Step 2 — chunk
+    print("\n✂️  Chunking documents...\n")
+    chunks = chunk_documents(documents)
+    stats(chunks)
+
+    # Step 3 — embed + index
+    build_embeddings(chunks)
