@@ -22,4 +22,5 @@ dependencies = [
     "uvicorn>=0.49.0",
     "langchain-text-splitters>=1.1.2",
     "python-dotenv>=1.2.2",
+    "langgraph>=1.2.6",
 ]
