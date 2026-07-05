@@ -16,7 +16,11 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters.character import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
 
+from ..helpers.logger import get_logger
+
 load_dotenv()
+
+logger = get_logger(__name__)
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
@@ -76,7 +80,7 @@ def is_useful(text: str, min_words: int = 50) -> bool:
 
 def extract_from_html(path: Path, ticker: str) -> dict | None:
     company = COMPANIES.get(ticker, ticker)
-    print(f"  Processing {ticker} ({company}) — {path.name}")
+    logger.info("Processing %s (%s) — %s", ticker, company, path.name)
 
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         html = f.read()
@@ -92,10 +96,10 @@ def extract_from_html(path: Path, ticker: str) -> dict | None:
     text = clean_text(soup.get_text(separator="\n", strip=True))
 
     if not is_useful(text):
-        print(f"    ⚠️  Not enough content in {path.name}, skipping.")
+        logger.warning("Not enough content in %s, skipping.", path.name)
         return None
 
-    print(f"    → {len(text.split()):,} words extracted")
+    logger.info("→ %s words extracted", f"{len(text.split()):,}")
     return {"text": text, "company": company, "ticker": ticker, "source": path.name}
 
 
@@ -127,9 +131,9 @@ def chunk_documents(documents: list[dict]) -> list[dict]:
                 "source":      doc["source"],
                 "chunk_index": i,
             })
-        print(f"  {doc['ticker']:<6} → {len(raw_chunks)} chunks")
+        logger.info("%s → %d chunks", doc["ticker"], len(raw_chunks))
 
-    print(f"\n✅ Total chunks: {len(all_chunks)}")
+    logger.info("✅ Total chunks: %d", len(all_chunks))
     return all_chunks
 
 
@@ -145,7 +149,7 @@ def build_embeddings(chunks: list[dict]) -> Chroma:
     IDs are ticker + chunk_index (e.g. "AAPL_0042") to allow safe re-runs
     without duplicating existing chunks.
     """
-    print(f"\n🔢 Loading embedding model: {EMBEDDING_MODEL}")
+    logger.info("🔢 Loading embedding model: %s", EMBEDDING_MODEL)
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
 
     texts     = [chunk["text"] for chunk in chunks]
@@ -160,7 +164,7 @@ def build_embeddings(chunks: list[dict]) -> Chroma:
     ]
     ids = [f"{chunk['ticker']}_{chunk['chunk_index']:04d}" for chunk in chunks]
 
-    print(f"📥 Indexing {len(texts)} chunks into ChromaDB at {CHROMA_DIR}...\n")
+    logger.info("📥 Indexing %d chunks into ChromaDB at %s...", len(texts), CHROMA_DIR)
 
     vector_store = Chroma.from_texts(
         texts=texts,
@@ -171,7 +175,7 @@ def build_embeddings(chunks: list[dict]) -> Chroma:
         persist_directory=str(CHROMA_DIR),
     )
 
-    print(f"\n✅ Index built — {len(texts)} chunks stored in '{COLLECTION}'")
+    logger.info("✅ Index built — %d chunks stored in '%s'", len(texts), COLLECTION)
     return vector_store
 
 
@@ -184,20 +188,20 @@ def load_reports() -> list[dict]:
             "Download 10-K reports from EDGAR and save them there."
         )
 
-    print(f"\n📂 Found {len(html_files)} HTML files in {DATA_DIR}\n")
+    logger.info("📂 Found %d HTML files in %s", len(html_files), DATA_DIR)
     documents = []
 
     for path in html_files:
         # EDGAR naming: aapl-20250927.html → AAPL
         ticker = path.stem.split("-")[0].upper()
         if ticker not in COMPANIES:
-            print(f"  ⚠️  Ticker '{ticker}' not recognized, skipping {path.name}")
+            logger.warning("Ticker '%s' not recognized, skipping %s", ticker, path.name)
             continue
         doc = extract_from_html(path, ticker)
         if doc:
             documents.append(doc)
 
-    print(f"\n✅ Total documents loaded: {len(documents)}")
+    logger.info("✅ Total documents loaded: %d", len(documents))
     return documents
 
 
@@ -206,9 +210,9 @@ def load_reports() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def stats(chunks: list[dict]) -> None:
-    print("\n📊 Chunk summary per company:")
-    print(f"  {'Ticker':<8} {'Company':<15} {'Chunks':>8} {'Avg. chars/chunk':>18}")
-    print("  " + "-" * 54)
+    logger.info("📊 Chunk summary per company:")
+    logger.info("  %-8s %-15s %8s %18s", "Ticker", "Company", "Chunks", "Avg. chars/chunk")
+    logger.info("  %s", "-" * 54)
 
     per_ticker: dict[str, list] = {}
     for chunk in chunks:
@@ -217,7 +221,7 @@ def stats(chunks: list[dict]) -> None:
     for ticker, ticker_chunks in sorted(per_ticker.items()):
         company = ticker_chunks[0]["company"]
         avg_chars = int(sum(len(c["text"]) for c in ticker_chunks) / len(ticker_chunks))
-        print(f"  {ticker:<8} {company:<15} {len(ticker_chunks):>8} {avg_chars:>18,}")
+        logger.info("  %-8s %-15s %8d %18s", ticker, company, len(ticker_chunks), f"{avg_chars:,}")
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +233,7 @@ if __name__ == "__main__":
     documents = load_reports()
 
     # Step 2 — chunk
-    print("\n✂️  Chunking documents...\n")
+    logger.info("✂️  Chunking documents...")
     chunks = chunk_documents(documents)
     stats(chunks)
 

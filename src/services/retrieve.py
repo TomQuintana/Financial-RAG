@@ -7,16 +7,19 @@ Output: List of LangChain Documents with metadata (company, ticker, chunk_index)
 """
 
 import sys
-from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 
-from ingest import CHROMA_DIR, COLLECTION, EMBEDDING_MODEL
+# TODO: pass to other file
+from .ingest import CHROMA_DIR, COLLECTION, EMBEDDING_MODEL
+from .logger import get_logger
 
 load_dotenv()
+
+logger = get_logger(__name__)
 
 
 def load_vectorstore() -> Chroma:
@@ -30,16 +33,21 @@ def load_vectorstore() -> Chroma:
 
 def retrieve(query: str, k: int = 5, ticker: str | None = None) -> list[Document]:
     """Similarity search. Filter by ticker if provided."""
-    vs = load_vectorstore()
+    vectors = load_vectorstore()
     where = {"ticker": ticker} if ticker else None
-    return vs.similarity_search(query, k=k, filter=where)
+    return vectors.similarity_search(query, k=k, filter=where)
 
 
 if __name__ == "__main__":
     query = sys.argv[1] if len(sys.argv) > 1 else "What was the total revenue of APPL?"
     results = retrieve(query, k=3)
+    logger.debug("Vectors results: %s", results)
+
     for i, doc in enumerate(results):
-        print(
-            f"\nResult {i + 1} — {doc.metadata['company']} (chunk {doc.metadata['chunk_index']}):"
+        logger.debug(
+            "Result %d — %s (chunk %s): %s...",
+            i + 1,
+            doc.metadata["company"],
+            doc.metadata["chunk_index"],
+            doc.page_content[:200],
         )
-        print(f"  {doc.page_content[:200]}...")
