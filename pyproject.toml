@@ -23,4 +23,20 @@ dependencies = [
     "langchain-text-splitters>=1.1.2",
     "python-dotenv>=1.2.2",
     "langgraph>=1.2.6",
+    "langchain-google-vertexai>=3.2.4",
+    "deepeval>=4.0.7",
 ]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+    "ruff>=0.9",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+# E pycodestyle, F pyflakes, I isort, UP pyupgrade, B bugbear
+select = ["E", "F", "I", "UP", "B"]
