@@ -11,10 +11,10 @@ import warnings
 from pathlib import Path
 
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters.character import RecursiveCharacterTextSplitter
-from dotenv import load_dotenv
 
 from ..helpers.logger import get_logger
 
@@ -29,20 +29,20 @@ warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 # Configuration
 # ---------------------------------------------------------------------------
 
-DATA_DIR   = Path("data/reports")
+DATA_DIR = Path("data/reports")
 CHROMA_DIR = Path("data/chroma_db")
 COLLECTION = "financial_reports"
 
 COMPANIES = {
     "AAPL": "Apple",
-    "JPM":  "JPMorgan",
-    "KO":   "Coca-Cola",
-    "PFE":  "Pfizer",
-    "XOM":  "ExxonMobil",
+    "JPM": "JPMorgan",
+    "KO": "Coca-Cola",
+    "PFE": "Pfizer",
+    "XOM": "ExxonMobil",
 }
 
 # ~800 tokens ≈ 3200 characters (1 token ≈ 4 chars for English financial text)
-CHUNK_SIZE    = 3200
+CHUNK_SIZE = 3200
 CHUNK_OVERLAP = 400  # ~100 tokens overlap
 
 # text-embedding-3-small: best balance of quality and cost (~$0.02/1M tokens)
@@ -52,6 +52,7 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 # ---------------------------------------------------------------------------
 # Cleaning
 # ---------------------------------------------------------------------------
+
 
 def clean_text(text: str) -> str:
     """
@@ -78,11 +79,12 @@ def is_useful(text: str, min_words: int = 50) -> bool:
 # Extraction
 # ---------------------------------------------------------------------------
 
+
 def extract_from_html(path: Path, ticker: str) -> dict | None:
     company = COMPANIES.get(ticker, ticker)
     logger.info("Processing %s (%s) — %s", ticker, company, path.name)
 
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         html = f.read()
 
     soup = BeautifulSoup(html, "lxml")
@@ -107,6 +109,7 @@ def extract_from_html(path: Path, ticker: str) -> dict | None:
 # Chunking
 # ---------------------------------------------------------------------------
 
+
 def chunk_documents(documents: list[dict]) -> list[dict]:
     """
     Splits each document into chunks of ~800 tokens with ~100 token overlap.
@@ -124,13 +127,15 @@ def chunk_documents(documents: list[dict]) -> list[dict]:
     for doc in documents:
         raw_chunks = splitter.split_text(doc["text"])
         for i, chunk_text in enumerate(raw_chunks):
-            all_chunks.append({
-                "text":        chunk_text,
-                "company":     doc["company"],
-                "ticker":      doc["ticker"],
-                "source":      doc["source"],
-                "chunk_index": i,
-            })
+            all_chunks.append(
+                {
+                    "text": chunk_text,
+                    "company": doc["company"],
+                    "ticker": doc["ticker"],
+                    "source": doc["source"],
+                    "chunk_index": i,
+                }
+            )
         logger.info("%s → %d chunks", doc["ticker"], len(raw_chunks))
 
     logger.info("✅ Total chunks: %d", len(all_chunks))
@@ -140,6 +145,7 @@ def chunk_documents(documents: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Embedding + Indexing
 # ---------------------------------------------------------------------------
+
 
 def build_embeddings(chunks: list[dict]) -> Chroma:
     """
@@ -152,12 +158,12 @@ def build_embeddings(chunks: list[dict]) -> Chroma:
     logger.info("🔢 Loading embedding model: %s", EMBEDDING_MODEL)
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
 
-    texts     = [chunk["text"] for chunk in chunks]
+    texts = [chunk["text"] for chunk in chunks]
     metadatas = [
         {
-            "company":     chunk["company"],
-            "ticker":      chunk["ticker"],
-            "source":      chunk["source"],
+            "company": chunk["company"],
+            "ticker": chunk["ticker"],
+            "source": chunk["source"],
             "chunk_index": chunk["chunk_index"],
         }
         for chunk in chunks
@@ -209,9 +215,12 @@ def load_reports() -> list[dict]:
 # Stats
 # ---------------------------------------------------------------------------
 
+
 def stats(chunks: list[dict]) -> None:
     logger.info("📊 Chunk summary per company:")
-    logger.info("  %-8s %-15s %8s %18s", "Ticker", "Company", "Chunks", "Avg. chars/chunk")
+    logger.info(
+        "  %-8s %-15s %8s %18s", "Ticker", "Company", "Chunks", "Avg. chars/chunk"
+    )
     logger.info("  %s", "-" * 54)
 
     per_ticker: dict[str, list] = {}
@@ -221,7 +230,13 @@ def stats(chunks: list[dict]) -> None:
     for ticker, ticker_chunks in sorted(per_ticker.items()):
         company = ticker_chunks[0]["company"]
         avg_chars = int(sum(len(c["text"]) for c in ticker_chunks) / len(ticker_chunks))
-        logger.info("  %-8s %-15s %8d %18s", ticker, company, len(ticker_chunks), f"{avg_chars:,}")
+        logger.info(
+            "  %-8s %-15s %8d %18s",
+            ticker,
+            company,
+            len(ticker_chunks),
+            f"{avg_chars:,}",
+        )
 
 
 # ---------------------------------------------------------------------------

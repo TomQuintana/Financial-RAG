@@ -1,6 +1,6 @@
 from langchain_core.documents import Document
 
-from ..logger import get_logger
+from ..helpers.logger import get_logger
 from ..retrieve import load_vectorstore
 
 logger = get_logger(__name__)

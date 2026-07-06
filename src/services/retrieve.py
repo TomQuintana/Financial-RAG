@@ -13,9 +13,10 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 
+from ..helpers.logger import get_logger
+
 # TODO: pass to other file
 from .ingest import CHROMA_DIR, COLLECTION, EMBEDDING_MODEL
-from .logger import get_logger
 
 load_dotenv()
 

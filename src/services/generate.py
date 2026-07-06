@@ -5,7 +5,7 @@ Steps 4-5: retrieve → rerank → abstain → generate.
 
 import sys
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import TypedDict
 
 from dotenv import load_dotenv
 from langchain_core.documents import Document
@@ -13,8 +13,9 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 
 sys.path.insert(0, str(Path(__file__).parent))
-from logger import get_logger
 from retrieve import load_vectorstore
+
+from ..helpers.logger import get_logger
 
 load_dotenv()
 
@@ -55,7 +56,7 @@ def generate_node(state: RAGState) -> RAGState:
         f"Question: {state['query']}"
     )
     answer = llm.invoke(prompt).content
-    return {**state, "answer": answer} # type: ignore
+    return {**state, "answer": answer}  # type: ignore
 
 
 def route_after_abstain(state: RAGState) -> str:
@@ -76,14 +77,18 @@ graph.add_node("generate", generate_node)
 graph.set_entry_point("retrieve")
 graph.add_edge("retrieve", "rerank")
 graph.add_edge("rerank", "abstain")
-graph.add_conditional_edges("abstain", route_after_abstain, {"generate": "generate", END: END})
+graph.add_conditional_edges(
+    "abstain", route_after_abstain, {"generate": "generate", END: END}
+)
 graph.add_edge("generate", END)
 
 pipeline = graph.compile()
 
 
 def run_pipeline(query: str) -> RAGState:
-    return pipeline.invoke({"query": query, "documents": [], "scores": [], "answer": "", "abstain": False}) # type: ignore
+    return pipeline.invoke(
+        {"query": query, "documents": [], "scores": [], "answer": "", "abstain": False}
+    )  # type: ignore
 
 
 if __name__ == "__main__":
