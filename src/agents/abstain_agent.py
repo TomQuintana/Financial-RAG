@@ -10,7 +10,6 @@ def abstain_agent(scores: list[float]) -> bool:
         logger.debug("Abstain: no scores, abstaining")
         return True
     best = max(scores)
-    print(f"Best score: {best}, Threshold: {RELEVANCE_THRESHOLD}")
     abstain = best < RELEVANCE_THRESHOLD
 
     logger.debug(
