@@ -11,6 +11,6 @@ def abstain_agent(scores: list[float]) -> bool:
     if not scores:
         return True
 
-    is_abstein = max(scores) < RELEVANCE_THRESHOLD
+    is_abstein = max(scores) <= RELEVANCE_THRESHOLD
 
     return is_abstein
