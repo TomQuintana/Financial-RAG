@@ -18,9 +18,7 @@ def get_logger(name: str) -> logging.Logger:
     # ponytail: basicConfig no soporta filter en handler; setup manual igual de simple.
     raw = os.getenv("LOG_LEVEL", "INFO")
 
-    levels = {
-        getattr(logging, lvl.strip().upper(), logging.INFO) for lvl in raw.split(",")
-    }
+    levels = {getattr(logging, lvl.strip().upper(), logging.INFO) for lvl in raw.split(",")}
 
     root = logging.getLogger()
 
