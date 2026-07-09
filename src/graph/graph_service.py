@@ -1,5 +1,3 @@
-from typing import Optional
-
 from .agent_graph import app as agent_graph
 from .state import RAGState
 
@@ -10,7 +8,7 @@ class GraphService:
     def __init__(self):
         self.graph = agent_graph
 
-    def process_query(self, user_message: str, metadata: Optional[dict] = None) -> dict:
+    def process_query(self, user_message: str, metadata: dict | None = None) -> dict:
         try:
             initial_state: RAGState = {
                 "query": user_message,
@@ -22,7 +20,11 @@ class GraphService:
             result = self.graph.invoke(initial_state)
 
             return {
-                "response": result.get("answer") or "No se generó respuesta.",
+                "response": (
+                    "No encontré información relevante en los reportes financieros."
+                    if result.get("abstain")
+                    else result.get("answer") or "No se generó respuesta."
+                ),
                 "success": True,
                 "error": None,
                 "metadata": metadata or {},

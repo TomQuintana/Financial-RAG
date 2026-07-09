@@ -1,22 +1,16 @@
 from ..helpers.logger import get_logger
 
-logger = get_logger(__name__)
+RELEVANCE_THRESHOLD = 0.0
 
-RELEVANCE_THRESHOLD = 0  # ponytail: cross-encoder logit, ajustar con eval
+logger = get_logger(__name__)
 
 
 def abstain_agent(scores: list[float]) -> bool:
+    # ponytail: stub — define threshold when eval data is available
+
     if not scores:
-        logger.debug("Abstain: no scores, abstaining")
         return True
-    best = max(scores)
-    abstain = best < RELEVANCE_THRESHOLD
 
-    logger.debug(
-        "Abstain: best score=%.2f, threshold=%s, abstain=%s",
-        best,
-        RELEVANCE_THRESHOLD,
-        abstain,
-    )
+    is_abstein = max(scores) < RELEVANCE_THRESHOLD
 
-    return abstain
+    return is_abstein
