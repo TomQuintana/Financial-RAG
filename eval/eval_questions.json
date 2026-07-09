@@ -1,0 +1,82 @@
+[
+  {
+    "question": "¿Cuáles son las principales fuentes de ingresos de la empresa?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cuáles fueron los ingresos totales del último año fiscal?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cómo cambió el ingreso neto en comparación con el año fiscal anterior?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cuál es la deuda a largo plazo total de la empresa y cuándo vence?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cuáles son los principales factores de riesgo relacionados con la competencia?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Qué factores de riesgo menciona la empresa relacionados con condiciones macroeconómicas o tasas de interés?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Existen procedimientos legales pendientes o litigios materiales divulgados?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Qué adquisiciones o desinversiones completó la empresa durante el año fiscal?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cuánto gastó la empresa en investigación y desarrollo?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cuál es el flujo de caja operativo de la empresa para el último año fiscal?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cuántos empleados de tiempo completo tiene la empresa?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Qué regiones geográficas generan más ingresos para la empresa?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cuáles son los principales competidores de la empresa mencionados en la descripción del negocio?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Menciona la empresa algún riesgo relacionado con ciberseguridad o privacidad de datos?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Qué política de dividendos sigue la empresa?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Qué programas de recompra de acciones fueron autorizados o ejecutados durante el año?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cuáles son los supuestos clave utilizados en el test de deterioro del goodwill?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cómo describe la gerencia las perspectivas o expectativas futuras en la sección MD&A?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Qué riesgos regulatorios divulga la empresa?",
+    "ground_truth": ""
+  },
+  {
+    "question": "¿Cuál es la tasa impositiva efectiva de la empresa y qué factores la afectaron?",
+    "ground_truth": ""
+  }
+]
