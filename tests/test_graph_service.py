@@ -1,3 +1,5 @@
+"""Tests for GraphService.process_query response handling."""
+
 from unittest.mock import MagicMock
 
 from src.graph.graph_service import GraphService

@@ -1,5 +1,5 @@
-"""
-retrieve.py — Similarity search against the ChromaDB collection.
+"""retrieve.py — Similarity search against the ChromaDB collection.
+
 Step 4 of the RAG Financial pipeline.
 
 Input:  Query string

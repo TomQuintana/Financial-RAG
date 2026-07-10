@@ -1,3 +1,5 @@
+"""RAG evaluation pipeline using deepeval over eval_questions.json."""
+
 import json
 import sys
 from pathlib import Path
@@ -19,6 +21,12 @@ QUESTIONS_FILE = Path(__file__).parent / "eval_questions.json"
 
 
 def build_test_cases() -> list[LLMTestCase]:
+    """Build deepeval test cases by running the graph over each eval question.
+
+    Returns:
+        A list of LLMTestCase holding the generated answer and retrieval
+        context for every question in eval_questions.json.
+    """
     questions = json.loads(QUESTIONS_FILE.read_text())
     cases = []
     for q in questions:

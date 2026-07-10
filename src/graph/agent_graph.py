@@ -1,3 +1,5 @@
+"""LangGraph RAG pipeline wiring: retrieve → rerank → abstain → generate."""
+
 from langgraph.graph import END, StateGraph
 
 from ..nodes.abstain_node import abstain_node
@@ -8,6 +10,14 @@ from .state import RAGState
 
 
 def route_after_abstain(state: RAGState) -> str:
+    """Route to END when the pipeline abstains, otherwise to generation.
+
+    Args:
+        state: Current graph state, read for the ``abstain`` flag.
+
+    Returns:
+        ``END`` if abstaining, ``"generate"`` otherwise.
+    """
     # return END if state["abstain"] else "generate"
     if state.get("abstain"):
         return END

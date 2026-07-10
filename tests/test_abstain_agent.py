@@ -1,3 +1,5 @@
+"""Tests for the abstention agent's threshold logic."""
+
 from src.agents.abstain_agent import RELEVANCE_THRESHOLD, abstain_agent
 
 

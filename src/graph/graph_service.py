@@ -1,3 +1,5 @@
+"""Service wrapper that runs the RAG graph and returns a structured result."""
+
 from .agent_graph import app as agent_graph
 from .state import RAGState
 
@@ -9,6 +11,17 @@ class GraphService:
         self.graph = agent_graph
 
     def process_query(self, user_message: str, metadata: dict | None = None) -> dict:
+        """Run the RAG pipeline for a user message and return the result.
+
+        Args:
+            user_message: The user question to answer.
+            metadata: Optional metadata echoed back in the response.
+
+        Returns:
+            A dict with ``response``, ``success``, ``error`` and ``metadata``.
+            On abstention or empty answer a fallback message is returned; on
+            error ``success`` is False and ``error`` holds the message.
+        """
         try:
             initial_state: RAGState = {
                 "query": user_message,
@@ -39,6 +52,7 @@ class GraphService:
             }
 
     def get_graph_visualization(self) -> str:
+        """Return a Mermaid diagram of the graph, or an error string on failure."""
         try:
             return self.graph.get_graph().draw_mermaid()
         except Exception as e:

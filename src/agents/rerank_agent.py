@@ -1,3 +1,5 @@
+"""Reranking agent: reorders retrieved documents with a local CrossEncoder."""
+
 from langchain_core.documents import Document
 from sentence_transformers import CrossEncoder
 
@@ -9,9 +11,7 @@ _model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 TOP_K = 4
 
 
-def rerank_agent(
-    query: str, documents: list[Document]
-) -> tuple[list[Document], list[float]]:
+def rerank_agent(query: str, documents: list[Document]) -> tuple[list[Document], list[float]]:
     """Rerank documents using a cross-encoder running locally via HuggingFace.
 
     Model: cross-encoder/ms-marco-MiniLM-L-6-v2 (~80MB, cached in ~/.cache/huggingface).
@@ -22,9 +22,7 @@ def rerank_agent(
 
     pairs = [[query, doc.page_content] for doc in documents]
     scores = _model.predict(pairs).tolist()
-    ranked = sorted(
-        zip(documents, scores, strict=True), key=lambda x: x[1], reverse=True
-    )
+    ranked = sorted(zip(documents, scores, strict=True), key=lambda x: x[1], reverse=True)
     docs, rerank_scores = zip(*ranked[:TOP_K], strict=True)
 
     logger.debug(
