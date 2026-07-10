@@ -1,7 +1,7 @@
 from langchain_core.documents import Document
 
 from ..helpers.logger import get_logger
-from ..retrieve import load_vectorstore
+from ..services.retrieve import load_vectorstore
 
 logger = get_logger(__name__)
 
@@ -15,6 +15,6 @@ def retrieve_agent(query: str, k: int = 20) -> tuple[list[Document], list[float]
     if not results:
         return [], []
 
-    docs, scores = zip(*results)
+    docs, scores = zip(*results, strict=True)
 
     return list(docs), list(scores)

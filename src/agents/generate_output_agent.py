@@ -8,13 +8,12 @@ logger = get_logger(__name__)
 
 
 def generate_output_agent(query: str, documents: list[Document]) -> str:
-    context = "\n\n".join(d.page_content for d in documents)
+    # context = "\n\n".join(document.page_content for document in documents)
+
     llm = ChatOpenAI(model="gpt-4o-mini")
 
-    prompt = generate_output_prompt(query, context)
+    prompt = generate_output_prompt(query, documents)
 
-    logger.info(
-        "Generating answer for query: '%s' with %d documents.", query, len(documents)
-    )
+    logger.info("Generating answer for query: '%s' with %d documents.", query, len(documents))
 
     return str(llm.invoke(prompt).content)
