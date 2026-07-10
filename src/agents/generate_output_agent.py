@@ -1,3 +1,5 @@
+"""Generation agent: builds the prompt and calls the LLM for an answer."""
+
 from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
 
@@ -8,8 +10,15 @@ logger = get_logger(__name__)
 
 
 def generate_output_agent(query: str, documents: list[Document]) -> str:
-    # context = "\n\n".join(document.page_content for document in documents)
+    """Generate an answer for a query grounded in the given documents.
 
+    Args:
+        query: The user question.
+        documents: Retrieved documents used as context.
+
+    Returns:
+        The LLM-generated answer as a string.
+    """
     llm = ChatOpenAI(model="gpt-4o-mini")
 
     prompt = generate_output_prompt(query, documents)

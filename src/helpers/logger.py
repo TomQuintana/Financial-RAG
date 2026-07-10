@@ -1,3 +1,5 @@
+"""Logger setup with per-level filtering driven by the LOG_LEVEL env var."""
+
 import logging
 import os
 
@@ -15,6 +17,14 @@ class _LevelFilter(logging.Filter):
 
 
 def get_logger(name: str) -> logging.Logger:
+    """Return a logger filtered to the levels listed in the LOG_LEVEL env var.
+
+    Args:
+        name: Logger name, typically ``__name__`` of the calling module.
+
+    Returns:
+        A configured ``logging.Logger`` instance.
+    """
     # ponytail: basicConfig no soporta filter en handler; setup manual igual de simple.
     raw = os.getenv("LOG_LEVEL", "INFO")
 

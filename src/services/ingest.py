@@ -1,5 +1,5 @@
-"""
-ingest.py — Text extraction, cleaning, chunking and indexing from 10-K HTML reports.
+"""ingest.py — Text extraction, cleaning, chunking and indexing from 10-K HTML reports.
+
 Steps 1, 2 and 3 of the RAG Financial pipeline.
 
 Input:  HTML files in data/reports/
@@ -55,8 +55,7 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 
 
 def clean_text(text: str) -> str:
-    """
-    Cleans raw text extracted from a 10-K HTML file.
+    """Cleans raw text extracted from a 10-K HTML file.
 
     Common problems in 10-K reports:
     - Lines containing only page numbers
@@ -72,6 +71,7 @@ def clean_text(text: str) -> str:
 
 
 def is_useful(text: str, min_words: int = 50) -> bool:
+    """Return True if the text has at least ``min_words`` words."""
     return len(text.split()) >= min_words
 
 
@@ -81,6 +81,16 @@ def is_useful(text: str, min_words: int = 50) -> bool:
 
 
 def extract_from_html(path: Path, ticker: str) -> dict | None:
+    """Extract clean text from a 10-K HTML file.
+
+    Args:
+        path: Path to the HTML report.
+        ticker: Stock ticker used to resolve the company name.
+
+    Returns:
+        A dict with ``text``, ``company``, ``ticker`` and ``source``, or None
+        if the extracted text does not have enough content.
+    """
     company = COMPANIES.get(ticker, ticker)
     logger.info("Processing %s (%s) — %s", ticker, company, path.name)
 
@@ -111,8 +121,7 @@ def extract_from_html(path: Path, ticker: str) -> dict | None:
 
 
 def chunk_documents(documents: list[dict]) -> list[dict]:
-    """
-    Splits each document into chunks of ~800 tokens with ~100 token overlap.
+    """Splits each document into chunks of ~800 tokens with ~100 token overlap.
 
     Separators tried in order: paragraph → line → sentence → word → char.
     Each chunk inherits parent metadata plus chunk_index.
@@ -148,10 +157,9 @@ def chunk_documents(documents: list[dict]) -> list[dict]:
 
 
 def build_embeddings(chunks: list[dict]) -> Chroma:
-    """
-    Embeds all chunks with OpenAI text-embedding-3-small and stores them
-    in a persistent ChromaDB collection at CHROMA_DIR.
+    """Embed all chunks and store them in a persistent ChromaDB collection.
 
+    Embeds with OpenAI text-embedding-3-small into the collection at CHROMA_DIR.
     IDs are ticker + chunk_index (e.g. "AAPL_0042") to allow safe re-runs
     without duplicating existing chunks.
     """
@@ -186,6 +194,14 @@ def build_embeddings(chunks: list[dict]) -> Chroma:
 
 
 def load_reports() -> list[dict]:
+    """Load and extract text from all recognized 10-K HTML files in DATA_DIR.
+
+    Returns:
+        A list of extracted document dicts, one per recognized report.
+
+    Raises:
+        FileNotFoundError: If no HTML files are found in DATA_DIR.
+    """
     html_files = sorted(DATA_DIR.glob("*.html")) + sorted(DATA_DIR.glob("*.htm"))
 
     if not html_files:
@@ -217,10 +233,9 @@ def load_reports() -> list[dict]:
 
 
 def stats(chunks: list[dict]) -> None:
+    """Log a per-company summary of chunk counts and average chunk size."""
     logger.info("📊 Chunk summary per company:")
-    logger.info(
-        "  %-8s %-15s %8s %18s", "Ticker", "Company", "Chunks", "Avg. chars/chunk"
-    )
+    logger.info("  %-8s %-15s %8s %18s", "Ticker", "Company", "Chunks", "Avg. chars/chunk")
     logger.info("  %s", "-" * 54)
 
     per_ticker: dict[str, list] = {}
