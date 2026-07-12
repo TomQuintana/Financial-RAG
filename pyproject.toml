@@ -45,3 +45,8 @@ ignore = ["D104", "D107"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.pytest.ini_options]
+# All built-in flags — no plugins. Applied to every `uv run pytest`.
+addopts = "-v -ra --tb=short --strict-markers --durations=5 --color=yes"
+testpaths = ["tests"]

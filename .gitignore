@@ -29,5 +29,6 @@ eval/results/
 # OS
 .DS_Store
 
-# todo
-todo.md
+# Docs
+test-documentation.md
+WORKFLOW.md
