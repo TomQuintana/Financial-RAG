@@ -1,5 +1,6 @@
 """Service wrapper that runs the RAG graph and returns a structured result."""
 
+from ..cache import get_cached, set_cached
 from .agent_graph import app as agent_graph
 from .state import RAGState
 
@@ -22,6 +23,15 @@ class GraphService:
             On abstention or empty answer a fallback message is returned; on
             error ``success`` is False and ``error`` holds the message.
         """
+        cached = get_cached(user_message)
+        print("Esta cacheado", cached)
+        if cached:
+            return {
+                "response": cached,
+                "success": True,
+                "error": None,
+                "metadata": metadata or {},
+            }
         try:
             initial_state: RAGState = {
                 "query": user_message,
@@ -31,6 +41,13 @@ class GraphService:
                 "abstain": False,
             }
             result = self.graph.invoke(initial_state)
+            abstain = result.get("abstain")
+            answer = result.get("answer")
+
+            print("abstain", abstain)
+
+            if not abstain and answer:
+                set_cached(user_message, answer)
 
             return {
                 "response": (
