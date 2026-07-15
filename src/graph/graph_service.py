@@ -1,8 +1,11 @@
 """Service wrapper that runs the RAG graph and returns a structured result."""
 
 from ..cache import get_cached, set_cached
+from ..helpers.logger import get_logger
 from .agent_graph import app as agent_graph
 from .state import RAGState
+
+logger = get_logger(__name__)
 
 
 class GraphService:
@@ -23,7 +26,11 @@ class GraphService:
             On abstention or empty answer a fallback message is returned; on
             error ``success`` is False and ``error`` holds the message.
         """
-        cached = get_cached(user_message)
+        try:
+            cached = get_cached(user_message)
+        except Exception:
+            logger.info("Cache read failed; treating as miss", exc_info=True)
+            cached = None
         if cached:
             return {
                 "response": cached,
@@ -44,7 +51,10 @@ class GraphService:
             answer = result.get("answer")
 
             if not abstain and answer:
-                set_cached(user_message, answer)
+                try:
+                    set_cached(user_message, answer)
+                except Exception:
+                    logger.info("Cache write failed; answer not cached", exc_info=True)
 
             return {
                 "response": (

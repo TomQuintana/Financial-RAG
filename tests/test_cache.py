@@ -25,13 +25,13 @@ class _FakeEmbeddings(Embeddings):
 
 @pytest.fixture(autouse=True)
 def fake_qa_cache(tmp_path, monkeypatch):
-    """Swap the module-level qa_cache for an isolated, offline instance per test."""
+    """Swap the lazy cache connection for an isolated, offline instance per test."""
     fake = Chroma(
         collection_name="qa_cache_test",
         embedding_function=_FakeEmbeddings(),
         persist_directory=str(tmp_path),
     )
-    monkeypatch.setattr(cache, "qa_cache", fake)
+    monkeypatch.setattr(cache, "load_cache", lambda: fake)
 
 
 def test_get_cached_returns_none_when_empty():
@@ -69,4 +69,4 @@ def test_set_cached_upserts_same_query():
     cache.set_cached("what is apple revenue", "$416,161M")
 
     assert cache.get_cached("what is apple revenue") == "$416,161M"
-    assert cache.qa_cache._collection.count() == 1
+    assert cache.load_cache()._collection.count() == 1

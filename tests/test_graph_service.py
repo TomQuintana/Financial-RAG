@@ -23,6 +23,10 @@ def fake_cache(monkeypatch):
     )
 
 
+def _raise(*args, **kwargs):
+    raise RuntimeError("cache down")
+
+
 def make_service(invoke_return) -> GraphService:
     """Build a GraphService whose graph is mocked to return a fixed state.
 
@@ -70,6 +74,26 @@ def test_returns_fallback_when_answer_empty_without_abstain():
 
     assert result["success"] is True
     assert result["response"] == "No se generó respuesta."
+
+
+def test_cache_read_failure_falls_through_to_graph(monkeypatch):
+    """Si get_cached lanza, la request igual responde vía el grafo (fail-soft)."""
+    monkeypatch.setattr("src.graph.graph_service.get_cached", _raise)
+    service = make_service({"answer": "Apple revenue was $394B.", "abstain": False})
+    result = service.process_query("Apple revenue?")
+
+    assert result["success"] is True
+    assert result["response"] == "Apple revenue was $394B."
+
+
+def test_cache_write_failure_still_returns_answer(monkeypatch):
+    """Si set_cached lanza tras un buen answer, la respuesta se conserva con success:True."""
+    monkeypatch.setattr("src.graph.graph_service.set_cached", _raise)
+    service = make_service({"answer": "Apple revenue was $394B.", "abstain": False})
+    result = service.process_query("Apple revenue?")
+
+    assert result["success"] is True
+    assert result["response"] == "Apple revenue was $394B."
 
 
 def test_returns_error_when_graph_raises():
