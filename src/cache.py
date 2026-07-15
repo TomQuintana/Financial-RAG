@@ -31,7 +31,6 @@ def get_cached(query: str) -> str | None:
         The cached answer, or None on a miss or an empty cache.
     """
     normalized = query.strip().lower()
-    print(qa_cache._collection.count())
 
     if qa_cache._collection.count() == 0:
         return None

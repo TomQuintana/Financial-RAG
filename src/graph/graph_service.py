@@ -24,7 +24,6 @@ class GraphService:
             error ``success`` is False and ``error`` holds the message.
         """
         cached = get_cached(user_message)
-        print("Esta cacheado", cached)
         if cached:
             return {
                 "response": cached,
@@ -43,8 +42,6 @@ class GraphService:
             result = self.graph.invoke(initial_state)
             abstain = result.get("abstain")
             answer = result.get("answer")
-
-            print("abstain", abstain)
 
             if not abstain and answer:
                 set_cached(user_message, answer)
