@@ -16,6 +16,7 @@ class Settings:
         LLM_MODEL: Chat model name.
         LLM_TEMPERATURE: Sampling temperature; 0 for anti-hallucination.
         LOG_LEVEL: Comma-separated logging levels.
+        RATE_LIMIT: str = os.getenv("RATE_LIMIT", "10/minute")
     """
 
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -23,6 +24,7 @@ class Settings:
     LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0"))
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    RATE_LIMIT: str = os.getenv("RATE_LIMIT", "10/minute")
     # ponytail: pydantic-settings is the upgrade path if validation/nesting is ever needed.
 
 
