@@ -2,7 +2,25 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from src.graph.graph_service import GraphService
+
+
+@pytest.fixture(autouse=True)
+def fake_cache(monkeypatch):
+    """Replace the cache with an in-memory dict local to each test.
+
+    process_query calls get_cached/set_cached from src.cache; without this, these
+    tests would hit the real persisted qa_cache (network calls + cross-test pollution
+    since every test here uses the same query string).
+    """
+    store: dict[str, str] = {}
+    monkeypatch.setattr("src.graph.graph_service.get_cached", store.get)
+    monkeypatch.setattr(
+        "src.graph.graph_service.set_cached",
+        lambda query, answer: store.update({query: answer}) if answer else None,
+    )
 
 
 def make_service(invoke_return) -> GraphService:
