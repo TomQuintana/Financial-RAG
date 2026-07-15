@@ -4,13 +4,15 @@
 
 Solo cosmético, no cambia comportamiento (`net: -9 líneas`):
 
-- [ ] `abstain_agent.py` — quitar temp `is_abstein`: `return not scores or max(scores) <= RELEVANCE_THRESHOLD`
-- [ ] `generate_output_agent.py` L11 — borrar `# context = ...` comentado
 - [ ] `agent_graph.py` L11 — borrar `# return END if ...` comentado
 - [ ] `agent_graph.py` `route_after_abstain` — volver a una línea: `return END if state.get("abstain") else "generate"`
 - [ ] `agent_graph.py` — quitar 3 líneas en blanco agregadas entre los `add_edge`
 - [ ] `generate_output_prompt.py` — inline: `context = "\n\n".join(_format_doc(i, d) for i, d in enumerate(documents, 1))`
 - [ ] Centralizar mensajes y constantes en `src/constants/` (o similar): strings como `"No encontré información relevante en los reportes financieros."`, `"No se generó respuesta."` y constantes como `RELEVANCE_THRESHOLD = 0.0` hoy están hardcodeadas dispersas
+
+## Pendiente — Fuentes en la respuesta
+
+- [ ] Devolver la cita de la fuente en `metadata` (hoy solo va inline en el texto vía `[Company, chunk N]`) — `graph_service.py::process_query` L35-44 solo devuelve `response/success/error/metadata`; falta propagar los `documents` recuperados (company, chunk_index) fuera del grafo
 
 ## Pendiente — Observabilidad
 
