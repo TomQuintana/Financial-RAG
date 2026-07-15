@@ -15,7 +15,7 @@ src/
   limiter.py   — API rate limiting (slowapi)
   app.py       — FastAPI app, wires everything together
 eval/
-  run_eval.py  — RAGAS evaluation pipeline
+  run_eval.py  — deepeval evaluation pipeline
   eval_questions.json — ground-truth Q&A pairs for eval
 data/
   reports/     — Raw 10-K HTML files from EDGAR (gitignored)
@@ -23,7 +23,7 @@ data/
 ```
 
 ## Testing
-- Eval framework: RAGAS (`ragas` package already installed)
+- Eval framework: deepeval (`deepeval` package already installed)
 - Run evals with: `uv run python eval/run_eval.py`
 - Metrics: faithfulness, answer relevancy, context precision, context recall
 - Ground-truth questions in `eval/eval_questions.json`
@@ -34,6 +34,7 @@ data/
 - Key: hash of the query string
 - Do not cache errors or empty responses
 - TTL and backend TBD — check `cache.py` before assuming implementation
+- Backend is ChromaDB (same as retrieval), persisted under `data/chroma_db/`. It stores metadata/ids in a SQLite file (`chroma.sqlite3`) and vectors in per-collection `.bin` (hnswlib) files — that SQLite schema is a Chroma internal, not a stable API; inspect it for debugging only, never query it from app code. See `notas.md` for terminal commands and details.
 
 ## Rate Limiting (`src/limiter.py`)
 - Uses `slowapi` (already installed)

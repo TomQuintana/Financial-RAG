@@ -2,7 +2,29 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from src.graph.graph_service import GraphService
+
+
+@pytest.fixture(autouse=True)
+def fake_cache(monkeypatch):
+    """Replace the cache with an in-memory dict local to each test.
+
+    process_query calls get_cached/set_cached from src.cache; without this, these
+    tests would hit the real persisted qa_cache (network calls + cross-test pollution
+    since every test here uses the same query string).
+    """
+    store: dict[str, str] = {}
+    monkeypatch.setattr("src.graph.graph_service.get_cached", store.get)
+    monkeypatch.setattr(
+        "src.graph.graph_service.set_cached",
+        lambda query, answer: store.update({query: answer}) if answer else None,
+    )
+
+
+def _raise(*args, **kwargs):
+    raise RuntimeError("cache down")
 
 
 def make_service(invoke_return) -> GraphService:
@@ -52,6 +74,26 @@ def test_returns_fallback_when_answer_empty_without_abstain():
 
     assert result["success"] is True
     assert result["response"] == "No se generó respuesta."
+
+
+def test_cache_read_failure_falls_through_to_graph(monkeypatch):
+    """Si get_cached lanza, la request igual responde vía el grafo (fail-soft)."""
+    monkeypatch.setattr("src.graph.graph_service.get_cached", _raise)
+    service = make_service({"answer": "Apple revenue was $394B.", "abstain": False})
+    result = service.process_query("Apple revenue?")
+
+    assert result["success"] is True
+    assert result["response"] == "Apple revenue was $394B."
+
+
+def test_cache_write_failure_still_returns_answer(monkeypatch):
+    """Si set_cached lanza tras un buen answer, la respuesta se conserva con success:True."""
+    monkeypatch.setattr("src.graph.graph_service.set_cached", _raise)
+    service = make_service({"answer": "Apple revenue was $394B.", "abstain": False})
+    result = service.process_query("Apple revenue?")
+
+    assert result["success"] is True
+    assert result["response"] == "Apple revenue was $394B."
 
 
 def test_returns_error_when_graph_raises():
