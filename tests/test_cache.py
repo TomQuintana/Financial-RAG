@@ -1,5 +1,7 @@
 """Tests for the semantic cache (src/cache.py)."""
 
+import time
+
 import pytest
 from langchain_chroma import Chroma
 from langchain_core.embeddings import Embeddings
@@ -30,6 +32,7 @@ def fake_qa_cache(tmp_path, monkeypatch):
         collection_name="qa_cache_test",
         embedding_function=_FakeEmbeddings(),
         persist_directory=str(tmp_path),
+        collection_metadata={"hnsw:space": "cosine"},
     )
     monkeypatch.setattr(cache, "load_cache", lambda: fake)
 
@@ -70,3 +73,19 @@ def test_set_cached_upserts_same_query():
 
     assert cache.get_cached("what is apple revenue") == "$416,161M"
     assert cache.load_cache()._collection.count() == 1
+
+
+def test_expired_entry_is_a_miss(monkeypatch):
+    """An entry older than CACHE_TTL_SECONDS is treated as a miss."""
+    cache.set_cached("what is apple revenue", "$416B")
+    monkeypatch.setattr(cache, "CACHE_TTL_SECONDS", 0)
+    time.sleep(0.01)
+    assert cache.get_cached("what is apple revenue") is None
+
+
+def test_invalidate_cache_drops_all_entries():
+    """invalidate_cache() empties the collection so every query is a fresh miss."""
+    cache.set_cached("what is apple revenue", "$416B")
+    cache.invalidate_cache()
+    assert cache.load_cache()._collection.count() == 0
+    assert cache.get_cached("what is apple revenue") is None

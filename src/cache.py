@@ -12,7 +12,9 @@ from .services.ingest import CHROMA_DIR, EMBEDDING_MODEL
 
 logger = get_logger(__name__)
 
-CACHE_DISTANCE_THRESHOLD = 0.15
+# TODO: move to constant folder
+CACHE_DISTANCE_THRESHOLD = 0.14
+CACHE_TTL_SECONDS = 60 * 60 * 24
 
 
 @cache
@@ -29,6 +31,7 @@ def load_cache() -> Chroma:
         collection_name="qa_cache",
         embedding_function=OpenAIEmbeddings(model=EMBEDDING_MODEL),
         persist_directory=str(CHROMA_DIR),
+        collection_metadata={"hnsw:space": "cosine"},
     )
 
 
@@ -48,11 +51,16 @@ def get_cached(query: str) -> str | None:
 
     doc, distance = load_cache().similarity_search_with_score(normalized, k=1)[0]
 
-    if distance <= CACHE_DISTANCE_THRESHOLD:
-        logger.info("Cache hit (distance=%.4f) for query: %r", distance, query)
-        return doc.metadata.get("answer")
+    if distance > CACHE_DISTANCE_THRESHOLD:
+        return None
 
-    return None
+    age = time.time() - doc.metadata.get("cached_at", 0)
+    if age > CACHE_TTL_SECONDS:
+        logger.info("Cache hit but expired (age=%.0fs) for query: %r", age, query)
+        return None
+
+    logger.info("Cache hit (distance=%.4f) for query: %r", distance, query)
+    return doc.metadata.get("answer")
 
 
 def set_cached(query: str, answer: str) -> None:
@@ -73,3 +81,12 @@ def set_cached(query: str, answer: str) -> None:
         metadatas=[{"answer": answer, "cached_at": time.time()}],
         ids=[cache_id],
     )
+
+
+def invalidate_cache() -> None:
+    """Drop all cached answers. Call after reindexing the corpus."""
+    store = load_cache()
+    ids = store.get()["ids"]
+    if ids:
+        store.delete(ids=ids)
+        logger.info("Cache invalidated (%d entries dropped)", len(ids))

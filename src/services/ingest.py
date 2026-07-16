@@ -190,6 +190,13 @@ def build_embeddings(chunks: list[dict]) -> Chroma:
     )
 
     logger.info("✅ Index built — %d chunks stored in '%s'", len(texts), COLLECTION)
+
+    from ..cache import (
+        invalidate_cache,  # local import: cache.py imports this module, avoid a cycle
+    )
+
+    invalidate_cache()
+
     return vector_store
 
 
