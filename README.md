@@ -28,6 +28,7 @@ The pipeline runs in six stages:
 | Abstain-and-exit before generation | Never spend an LLM call on low-relevance retrieval. The relevance threshold is currently a stub (`RELEVANCE_THRESHOLD = 0.0`, marked `ponytail:` in code) — deliberately left untuned until eval data justified a real value |
 | LLM client factory (`src/client_llm/`) | Single interface abstracts the provider (OpenAI now, Anthropic later); one cached instance per process |
 | Inline citations `[Company, chunk N]` | Human-readable traceability to the source chunk, without a separate structured field — see Future Improvements |
+| Semantic cache (`src/cache.py`): cosine distance ≤ 0.14, 24h TTL + invalidation on reindex | Avoids the LLM call for near-duplicate questions. Threshold picked via `eval/measure_cache_threshold.py`; known limitation: it can't reliably tell apart the same question asked about a different fiscal year (embeddings capture topic, not the exact year), so a same-year cache hit isn't guaranteed accurate for year-specific questions |
 
 ## Evaluation results
 
